@@ -1,0 +1,103 @@
+https://kubernetes.io/docs/tutorials/kubernetes-basics/
+
+https://github.com/GoogleCloudPlatform/microservices-demo/blob/main/docs/development-guide.md
+
+https://www.docker.com/products/docker-desktop/
+https://kubernetes.io/docs/tasks/tools/
+
+kind
+kind lets you run Kubernetes on your local computer. 
+This tool requires that you have either Docker or Podman installed.
+https://kind.sigs.k8s.io/docs/user/quick-start/
+
+
+minikube
+Like kind, minikube is a tool that lets you run Kubernetes locally. 
+minikube runs an all-in-one or a multi-node local Kubernetes cluster on your personal computer (including Windows, macOS and Linux PCs)
+so that you can try out Kubernetes, or for daily development work.
+https://minikube.sigs.k8s.io/docs/start/
+
+
+kubeadm
+You can use the kubeadm tool to create and manage Kubernetes clusters. 
+It performs the actions necessary to get a minimum viable, secure cluster up and running in a user friendly way.
+https://kubernetes.io/docs/setup/production-environment/tools/kubeadm/install-kubeadm/
+
+
+
+git clone https://github.com/GoogleCloudPlatform/microservices-demo
+cd microservices-demo/
+
+skaffold run
+skaffold delete
+
+minikube start --cpus=4 --memory 4096 --disk-size 32g
+kind create cluster
+
+
+#  skaffold delete
+kubectl get nodes
+kubectl get pods
+
+kubectl apply -f ./release/kubernetes-manifests.yaml
+kubectl get service frontend-external 
+kubectl port-forward deployment/frontend 8080:8080
+
+docker pull grafana/pyroscope:latest
+docker network create pyroscope-demo
+docker run --rm --name pyroscope --network=pyroscope-demo -p 4040:4040 grafana/pyroscope:latest
+
+curl localhost:4040/ready
+
+
+docker run --rm --name=grafana -p 3000:3000 -e "GF_FEATURE_TOGGLES_ENABLE=flameGraph" --network=pyroscope-demo grafana/grafana:main
+
+
+helm upgrade -n pyroscope-test --reuse-values grafana grafana/grafana --values datasources.yaml
+
+https://grafana.com/docs/pyroscope/latest/deploy-kubernetes/helm/
+
+brew install helm
+
+kubectl create namespace pyroscope-test
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+
+helm -n pyroscope-test install pyroscope grafana/pyroscope
+
+
+# Option B:
+# Gather the default config for micro-services
+curl -Lo values-micro-services.yaml https://raw.githubusercontent.com/grafana/pyroscope/main/operations/pyroscope/helm/pyroscope/values-micro-services.yaml
+helm -n pyroscope-test install pyroscope grafana/pyroscope --values values-micro-services.yaml
+
+kubectl -n pyroscope-test get pods
+
+helm upgrade -n pyroscope-test --install grafana grafana/grafana \
+  --set image.repository=grafana/grafana \
+  --set image.tag=main \
+  --set env.GF_FEATURE_TOGGLES_ENABLE=flameGraph \
+  --set env.GF_AUTH_ANONYMOUS_ENABLED=true \
+  --set env.GF_AUTH_ANONYMOUS_ORG_ROLE=Admin \
+  --set env.GF_DIAGNOSTICS_PROFILING_ENABLED=true \
+  --set env.GF_DIAGNOSTICS_PROFILING_ADDR=0.0.0.0 \
+  --set env.GF_DIAGNOSTICS_PROFILING_PORT=6060 \
+  --set-string 'podAnnotations.pyroscope\.grafana\.com/scrape=true' \
+  --set-string 'podAnnotations.pyroscope\.grafana\.com/port=6060'
+
+  kubectl port-forward -n pyroscope-test service/grafana 3000:80
+
+  datasource.yaml:
+  datasources:
+  pyroscope.yaml:
+   apiVersion: 1
+   datasources:
+   - name: Pyroscope
+     type: grafana-pyroscope-datasource
+     uid: pyroscope-test
+     url: http://pyroscope-querier.pyroscope-test.svc.cluster.local.:4040/
+
+
+   helm upgrade -n pyroscope-test --reuse-values grafana grafana/grafana --values datasources.yaml
+
+   
